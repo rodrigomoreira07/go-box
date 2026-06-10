@@ -46,6 +46,7 @@ graph TD
 * **Manual Upload & Download:**
   * Users must be able to drag-and-drop or select files from their computer to upload them.
   * Files must be uploaded **directly to AWS S3** using secure Presigned URLs provided by the Go backend to optimize bandwidth.
+  * **Resumable Uploads & Connection Recovery:** If the internet connection drops during a file upload, the client (both React Web and Go Desktop) must resume uploading from where it stopped (using S3 Multipart Uploads) instead of restarting from the beginning.
   * Users must be able to securely download any cloud file.
 * **Directory Management:** Users must be able to create new folders and delete existing files or folders directly from the browser view.
 
@@ -55,6 +56,7 @@ graph TD
   * The application must run quietly in the OS background.
   * It must watch the sandbox folder using filesystem event listeners (`fsnotify`).
   * When a file is created, modified, or deleted locally, the client must compute the file's SHA-256 hash, compare it against a local SQLite cache, and automatically update the cloud state via the backend API.
+  * For larger files, the sync client must utilize the same **Resumable Uploads** mechanism (multipart upload parts) to handle network interruptions gracefully.
 * **Automated Pull Synchronization (Cloud $\rightarrow$ Local):**
   * The desktop application must periodically poll the backend or maintain a persistent connection to detect changes made via the Web Dashboard.
   * Any new files uploaded through the web must automatically download to the local sandbox folder.

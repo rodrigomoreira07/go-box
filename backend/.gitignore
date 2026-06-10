@@ -1,0 +1,30 @@
+# Binaries for Go programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries and output
+*.test
+*.out
+
+# Build directories
+bin/
+build/
+
+# Dependency directories
+vendor/
+/pkg/mod/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Editor metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
