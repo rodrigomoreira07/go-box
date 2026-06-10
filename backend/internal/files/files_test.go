@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"go-box/backend/internal/domain/files"
+	"go-box/backend/internal/files"
 )
 
 type mockFileRepository struct {
@@ -65,24 +65,32 @@ func (m *mockStorageService) GenerateDownloadURL(ctx context.Context, userID str
 }
 
 type mockQuotaValidator struct {
-	ValidateAndReserveFunc func(ctx context.Context, userID string, fileSize int64) error
+	CheckQuotaFunc   func(ctx context.Context, userID string, fileSize int64) error
+	ConsumeQuotaFunc func(ctx context.Context, userID string, fileSize int64) error
 }
 
-func (m *mockQuotaValidator) ValidateAndReserve(ctx context.Context, userID string, fileSize int64) error {
-	if m.ValidateAndReserveFunc != nil {
-		return m.ValidateAndReserveFunc(ctx, userID, fileSize)
+func (m *mockQuotaValidator) CheckQuota(ctx context.Context, userID string, fileSize int64) error {
+	if m.CheckQuotaFunc != nil {
+		return m.CheckQuotaFunc(ctx, userID, fileSize)
+	}
+	return nil
+}
+
+func (m *mockQuotaValidator) ConsumeQuota(ctx context.Context, userID string, fileSize int64) error {
+	if m.ConsumeQuotaFunc != nil {
+		return m.ConsumeQuotaFunc(ctx, userID, fileSize)
 	}
 	return nil
 }
 
 var _ = Describe("FileService", func() {
 	var (
-		repo         *mockFileRepository
-		storage      *mockStorageService
-		quotaVal     *mockQuotaValidator
-		fileService  *files.FileService
-		ctx          context.Context
-		userID       string
+		repo        *mockFileRepository
+		storage     *mockStorageService
+		quotaVal    *mockQuotaValidator
+		fileService *files.FileService
+		ctx         context.Context
+		userID      string
 	)
 
 	BeforeEach(func() {
@@ -118,7 +126,7 @@ var _ = Describe("FileService", func() {
 		Context("when quota check fails", func() {
 			It("should forward quota error and not generate URL", func() {
 				quotaErr := errors.New("quota limit reached")
-				quotaVal.ValidateAndReserveFunc = func(ctx context.Context, uid string, size int64) error {
+				quotaVal.CheckQuotaFunc = func(ctx context.Context, uid string, size int64) error {
 					Expect(uid).To(Equal(userID))
 					Expect(size).To(Equal(int64(1024)))
 					return quotaErr
@@ -142,7 +150,15 @@ var _ = Describe("FileService", func() {
 				filePath := "docs/report.pdf"
 				fileSize := int64(2048)
 
-				quotaVal.ValidateAndReserveFunc = func(ctx context.Context, uid string, size int64) error {
+				quotaVal.CheckQuotaFunc = func(ctx context.Context, uid string, size int64) error {
+					return nil
+				}
+
+				calledConsume := false
+				quotaVal.ConsumeQuotaFunc = func(ctx context.Context, uid string, size int64) error {
+					Expect(uid).To(Equal(userID))
+					Expect(size).To(Equal(fileSize))
+					calledConsume = true
 					return nil
 				}
 
@@ -166,6 +182,7 @@ var _ = Describe("FileService", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(url).To(Equal(expectedURL))
 				Expect(calledSave).To(BeTrue())
+				Expect(calledConsume).To(BeTrue())
 			})
 		})
 	})
